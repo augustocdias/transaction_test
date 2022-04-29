@@ -1,14 +1,19 @@
 use actix::{Actor, ActorContext, Addr, Context, Handler, MessageResult, Supervised, Supervisor};
+use log::info;
 
 use crate::model::{Account, Collect, Transaction, TransactionError, TransactionType};
 
+/// Actor to hold the state of each client's account
 pub struct AccountHandler {
+    client: u16,
     account: Account,
 }
 
 impl AccountHandler {
+    /// Creates a new account and starts the actor
     pub fn new(client_id: u16) -> Addr<Self> {
         Supervisor::start(move |_| Self {
+            client: client_id,
             account: Account::new(client_id),
         })
     }
@@ -16,9 +21,21 @@ impl AccountHandler {
 
 impl Actor for AccountHandler {
     type Context = Context<Self>;
+
+    fn started(&mut self, _: &mut Self::Context) {
+        info!("Actor from account {} started.", self.client);
+    }
+
+    fn stopped(&mut self, _: &mut Self::Context) {
+        info!("Actor from account {} stopped.", self.client);
+    }
 }
 
-impl Supervised for AccountHandler {}
+impl Supervised for AccountHandler {
+    fn restarting(&mut self, _: &mut <Self as Actor>::Context) {
+        info!("Actor from account {} restarting.", self.client);
+    }
+}
 
 impl Handler<Transaction> for AccountHandler {
     type Result = Result<(), TransactionError>;
